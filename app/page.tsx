@@ -352,7 +352,13 @@ function formatAvailability(availability: string) {
 }
 
 function uniqueReasons(reasons: string[]) {
-  return [...new Set(reasons)].slice(0, 3);
+  const fallbacks = [
+    "Easy everyday connection windows",
+    "Compatible local rhythms",
+    "Good low-pressure village potential",
+  ];
+
+  return [...new Set([...reasons, ...fallbacks])].slice(0, 3);
 }
 
 function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummary {
@@ -391,7 +397,6 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
       : "",
     localScore >= 0.85 ? "Nearby neighborhoods" : "",
     profile.safetyVerified ? "Safety-verified profile" : "",
-    "Good low-pressure village potential",
   ].filter(Boolean);
 
   return {
