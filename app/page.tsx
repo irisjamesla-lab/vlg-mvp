@@ -9,6 +9,8 @@ type VLGProfile = {
   neighborhood: string;
   values: string[];
   kidsAges: number[];
+  supportNeeds: string[];
+  supportNeedsNotes: string;
   availability: string[];
   preferredDates: string[];
   everydayMoments: string[];
@@ -58,6 +60,8 @@ type SetupProfileForm = {
   neighborhood: string;
   kidsAgesText: string;
   bio: string;
+  supportNeeds: string[];
+  supportNeedsNotes: string;
   values: string[];
   preferredDates: string[];
   everydayMoments: string[];
@@ -71,6 +75,7 @@ type SetupMultiSelectField =
   | "dietaryNeeds"
   | "everydayMoments"
   | "preferredDates"
+  | "supportNeeds"
   | "values";
 
 const AVATAR_PALETTES: AvatarPalette[] = [
@@ -345,6 +350,22 @@ const DIETARY_NEED_OPTIONS = [
   "Ask before sharing food",
 ];
 
+const SUPPORT_NEED_OPTIONS = [
+  "No special accommodations",
+  "Autism-friendly",
+  "ADHD-friendly",
+  "Sensory-sensitive spaces",
+  "Speech/development support",
+  "OT/PT-friendly play",
+  "Mobility-accessible spots",
+  "Medical needs awareness",
+  "Anxiety/shy kid support",
+  "Low-stimulation hangouts",
+  "Flexible timing / short visits",
+  "Predictable plans",
+  "Caregiver-to-caregiver check-in",
+];
+
 const PRIME_HANGOUT_OPTIONS = [
   "Mon AM",
   "Mon PM",
@@ -369,6 +390,13 @@ const SEED_PROFILES: VLGProfile[] = [
     neighborhood: "Sherman Oaks",
     values: ["screen-light", "outdoors"],
     kidsAges: [5, 8],
+    supportNeeds: [
+      "Sensory-sensitive spaces",
+      "Low-stimulation hangouts",
+      "Flexible timing / short visits",
+    ],
+    supportNeedsNotes:
+      "One kid does best with quieter parks and a short heads-up before plans change.",
     availability: ["Sun AM", "Wed PM"],
     preferredDates: ["Open park"],
     everydayMoments: [
@@ -391,6 +419,13 @@ const SEED_PROFILES: VLGProfile[] = [
     neighborhood: "Granada Hills",
     values: ["gentle parenting", "low-sugar"],
     kidsAges: [10],
+    supportNeeds: [
+      "No special accommodations",
+      "Predictable plans",
+      "Caregiver-to-caregiver check-in",
+    ],
+    supportNeedsNotes:
+      "No formal accommodations right now, but predictable plans help everyone.",
     availability: ["Tue PM"],
     preferredDates: ["Library"],
     everydayMoments: [
@@ -413,6 +448,13 @@ const SEED_PROFILES: VLGProfile[] = [
     neighborhood: "Studio City",
     values: ["inclusive", "creative play"],
     kidsAges: [6, 9],
+    supportNeeds: [
+      "ADHD-friendly",
+      "Flexible timing / short visits",
+      "Low-stimulation hangouts",
+    ],
+    supportNeedsNotes:
+      "Short, active plans with room to move are usually the best fit.",
     availability: ["Sat AM", "Thu PM"],
     preferredDates: ["Museum", "Farmer's market"],
     everydayMoments: [
@@ -435,6 +477,13 @@ const SEED_PROFILES: VLGProfile[] = [
     neighborhood: "North Hollywood",
     values: ["routine", "kindness"],
     kidsAges: [4],
+    supportNeeds: [
+      "Autism-friendly",
+      "Sensory-sensitive spaces",
+      "Predictable plans",
+    ],
+    supportNeedsNotes:
+      "We do best with predictable plans, gentle transitions, and quieter spaces.",
     availability: ["Mon PM", "Fri AM"],
     preferredDates: ["Play cafe", "Picnic"],
     everydayMoments: [
@@ -457,6 +506,13 @@ const SEED_PROFILES: VLGProfile[] = [
     neighborhood: "Burbank",
     values: ["no-pressure plans", "outdoors"],
     kidsAges: [7, 11],
+    supportNeeds: [
+      "Anxiety/shy kid support",
+      "Caregiver-to-caregiver check-in",
+      "Flexible timing / short visits",
+    ],
+    supportNeedsNotes:
+      "A quick parent check-in before meeting helps my shy kid feel more comfortable.",
     availability: ["Sun PM", "Wed PM"],
     preferredDates: ["Hiking trail", "Board game cafe"],
     everydayMoments: [
@@ -481,6 +537,13 @@ const DEFAULT_ME: VLGProfile = {
   neighborhood: "Northridge",
   values: ["outdoors"],
   kidsAges: [10],
+  supportNeeds: [
+    "Sensory-sensitive spaces",
+    "Flexible timing / short visits",
+    "Caregiver-to-caregiver check-in",
+  ],
+  supportNeedsNotes:
+    "Quieter outdoor spaces and flexible timing make hangouts easier for us.",
   availability: ["Sun AM"],
   preferredDates: ["Park"],
   everydayMoments: [
@@ -505,6 +568,8 @@ function createDefaultSetupForm(): SetupProfileForm {
     neighborhood: DEFAULT_ME.neighborhood,
     kidsAgesText: DEFAULT_ME.kidsAges.join(", "),
     bio: DEFAULT_ME.bio,
+    supportNeeds: [...DEFAULT_ME.supportNeeds],
+    supportNeedsNotes: DEFAULT_ME.supportNeedsNotes,
     values: [...DEFAULT_ME.values],
     preferredDates: [...DEFAULT_ME.preferredDates],
     everydayMoments: [...DEFAULT_ME.everydayMoments],
@@ -541,6 +606,9 @@ function createProfileFromSetup(form: SetupProfileForm): VLGProfile {
     name,
     neighborhood,
     kidsAges: kidsAges.length > 0 ? kidsAges : DEFAULT_ME.kidsAges,
+    supportNeeds: fallbackToDefault(form.supportNeeds, DEFAULT_ME.supportNeeds),
+    supportNeedsNotes:
+      form.supportNeedsNotes.trim() || DEFAULT_ME.supportNeedsNotes,
     availability: fallbackToDefault(form.availability, DEFAULT_ME.availability),
     values: fallbackToDefault(form.values, DEFAULT_ME.values),
     preferredDates: fallbackToDefault(
@@ -585,6 +653,7 @@ type MatchSummary = {
   reasons: string[];
   sharedEverydayMoments: string[];
   sharedDietaryNeeds: string[];
+  sharedSupportNeeds: string[];
 };
 
 function cloneProfile(profile: VLGProfile): VLGProfile {
@@ -592,6 +661,7 @@ function cloneProfile(profile: VLGProfile): VLGProfile {
     ...profile,
     values: [...profile.values],
     kidsAges: [...profile.kidsAges],
+    supportNeeds: [...profile.supportNeeds],
     availability: [...profile.availability],
     preferredDates: [...profile.preferredDates],
     everydayMoments: [...profile.everydayMoments],
@@ -617,6 +687,7 @@ function normalizeProfile(
   const base = fallback ?? DEFAULT_ME;
   const values = profile?.values ?? base.values;
   const kidsAges = profile?.kidsAges ?? base.kidsAges;
+  const supportNeeds = profile?.supportNeeds ?? base.supportNeeds;
   const availability = profile?.availability ?? base.availability;
   const preferredDates = profile?.preferredDates ?? base.preferredDates;
   const everydayMoments = profile?.everydayMoments ?? base.everydayMoments;
@@ -628,6 +699,8 @@ function normalizeProfile(
     ...profile,
     values: [...values],
     kidsAges: [...kidsAges],
+    supportNeeds: [...supportNeeds],
+    supportNeedsNotes: profile?.supportNeedsNotes ?? base.supportNeedsNotes,
     availability: [...availability],
     preferredDates: [...preferredDates],
     everydayMoments: [...everydayMoments],
@@ -761,6 +834,10 @@ function safetyLifestyleScore(me: VLGProfile, profile: VLGProfile) {
     score += 0.15;
   }
 
+  if (sharedItems(me.supportNeeds, profile.supportNeeds).length > 0) {
+    score += 0.15;
+  }
+
   return Math.min(score, 1);
 }
 
@@ -795,6 +872,7 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
     profile.everydayMoments,
   );
   const sharedDietaryNeeds = sharedItems(me.dietaryNeeds, profile.dietaryNeeds);
+  const sharedSupportNeeds = sharedItems(me.supportNeeds, profile.supportNeeds);
   const playdateScore = tokenOverlapScore(me.preferredDates, profile.preferredDates);
   const ageScore = childAgeScore(me, profile);
   const localScore = locationScore(me, profile);
@@ -818,6 +896,9 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
       ? `Both open to ${sharedEverydayMoments[0]}`
       : "",
     ageScore >= 0.6 ? "Kids are close in age" : "",
+    sharedSupportNeeds[0]
+      ? `Shared support fit: ${sharedSupportNeeds[0]}`
+      : "",
     sharedValues.length > 0 ? "Similar parenting values" : "",
     sharedDietaryNeeds[0] ? `Shared snack comfort: ${sharedDietaryNeeds[0]}` : "",
     playdateScore > 0 || (hasOutdoorOrPublicPreference(me) && hasOutdoorOrPublicPreference(profile))
@@ -832,6 +913,7 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
     reasons: uniqueReasons(reasonCandidates),
     sharedEverydayMoments,
     sharedDietaryNeeds,
+    sharedSupportNeeds,
   };
 }
 
@@ -900,7 +982,13 @@ export default function Page() {
   }
 
   function updateSetupField(
-    field: "bio" | "dietaryNotes" | "kidsAgesText" | "name" | "neighborhood",
+    field:
+      | "bio"
+      | "dietaryNotes"
+      | "kidsAgesText"
+      | "name"
+      | "neighborhood"
+      | "supportNeedsNotes",
     value: string,
   ) {
     setSetupForm((currentForm) => ({ ...currentForm, [field]: value }));
@@ -1118,6 +1206,47 @@ export default function Page() {
                 />
               </label>
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
+            <h2 className="text-xl font-bold">
+              Kids' support needs & accommodations
+            </h2>
+            <p className="mt-1 text-sm text-[#6f604d]">
+              Share sensory, developmental, mobility, medical, or social
+              supports that make hangouts feel welcoming.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {SUPPORT_NEED_OPTIONS.map((need) => {
+                const selected = setupForm.supportNeeds.includes(need);
+
+                return (
+                  <button
+                    key={need}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      selected
+                        ? "border-[#120f0b] bg-[#120f0b] text-[#fffaf0]"
+                        : "border-[#d7b46a]/45 bg-[#fbf4e8] text-[#5d4525]"
+                    }`}
+                    onClick={() => toggleSetupOption("supportNeeds", need)}
+                  >
+                    {need}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="mt-4 grid gap-2 text-sm font-semibold">
+              Support notes
+              <textarea
+                className="min-h-24 rounded-xl border border-[#d7b46a]/50 bg-white px-3 py-3 text-base font-normal"
+                placeholder="Example: low-stimulation park, short first hangout, visual schedule, accessible parking..."
+                value={setupForm.supportNeedsNotes}
+                onChange={(event) =>
+                  updateSetupField("supportNeedsNotes", event.target.value)
+                }
+              />
+            </label>
           </section>
 
           <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
@@ -1405,6 +1534,29 @@ export default function Page() {
                     {value}
                   </span>
                 ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-[#8f6f32]">
+                  Kids' support needs
+                </h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {current.supportNeeds.map((need) => (
+                    <span
+                      key={need}
+                      className={`rounded-full border px-3 py-1 text-sm font-medium ${
+                        matchSummary?.sharedSupportNeeds.includes(need)
+                          ? "border-[#8f6f32] bg-[#f4ead7] text-[#3a2a18]"
+                          : "border-[#d7b46a]/45 bg-white text-[#5d4525]"
+                      }`}
+                    >
+                      {need}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-[#6f604d]">
+                  {current.supportNeedsNotes}
+                </p>
               </div>
 
               <div className="mt-5 rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
