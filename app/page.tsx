@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Avatars are local privacy SVGs, so Next image optimization is not needed here. */
 import React, { useEffect, useState } from "react";
 
 type VLGProfile = {
@@ -24,6 +25,223 @@ type SwipeHistoryEntry = {
   createdMatch: boolean;
 };
 
+type AvatarPalette = {
+  background: string;
+  hair: string;
+  top: string;
+  accent: string;
+  skin: string;
+};
+
+type AvatarPluginInput = {
+  photo: File;
+  displayName: string;
+};
+
+type AvatarPlugin = {
+  id: string;
+  name: string;
+  description: string;
+  generateAvatar(input: AvatarPluginInput): Promise<string>;
+};
+
+const AVATAR_PALETTES: AvatarPalette[] = [
+  {
+    background: "#fef3c7",
+    hair: "#7c2d12",
+    top: "#0f766e",
+    accent: "#f59e0b",
+    skin: "#f2c6a0",
+  },
+  {
+    background: "#e0f2fe",
+    hair: "#1e293b",
+    top: "#2563eb",
+    accent: "#38bdf8",
+    skin: "#d8a47f",
+  },
+  {
+    background: "#fce7f3",
+    hair: "#581c87",
+    top: "#be185d",
+    accent: "#f472b6",
+    skin: "#8d5524",
+  },
+  {
+    background: "#dcfce7",
+    hair: "#3f2a1d",
+    top: "#15803d",
+    accent: "#84cc16",
+    skin: "#c68642",
+  },
+  {
+    background: "#ede9fe",
+    hair: "#312e81",
+    top: "#7c3aed",
+    accent: "#a78bfa",
+    skin: "#e0ac69",
+  },
+];
+
+function hashString(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash);
+}
+
+function escapeSvgText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function colorFromRgb(red: number, green: number, blue: number) {
+  const toHex = (value: number) =>
+    Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
+
+  return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
+}
+
+function adjustColor(hexColor: string, amount: number) {
+  const normalized = hexColor.replace("#", "");
+  const red = parseInt(normalized.slice(0, 2), 16) + amount;
+  const green = parseInt(normalized.slice(2, 4), 16) + amount;
+  const blue = parseInt(normalized.slice(4, 6), 16) + amount;
+
+  return colorFromRgb(red, green, blue);
+}
+
+function initialsForName(name: string) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "V";
+}
+
+function createPrivacyAvatar(
+  name: string,
+  paletteOverride: Partial<AvatarPalette> = {},
+) {
+  const hash = hashString(name);
+  const basePalette = AVATAR_PALETTES[hash % AVATAR_PALETTES.length];
+  const palette = { ...basePalette, ...paletteOverride };
+  const smilePath =
+    hash % 2 === 0 ? "M82 126 Q96 137 110 126" : "M82 127 Q96 134 110 127";
+  const hairPath =
+    hash % 3 === 0
+      ? "M52 94 Q58 48 98 47 Q138 48 144 94 Q126 78 98 80 Q70 78 52 94"
+      : "M55 90 Q66 50 98 48 Q130 50 141 90 Q124 68 98 72 Q72 68 55 90";
+  const escapedName = escapeSvgText(name);
+  const escapedInitials = escapeSvgText(initialsForName(name));
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-labelledby="title">
+  <title id="title">Privacy avatar for ${escapedName}</title>
+  <rect width="192" height="192" rx="42" fill="${palette.background}"/>
+  <circle cx="154" cy="42" r="22" fill="${palette.accent}" opacity="0.38"/>
+  <circle cx="38" cy="148" r="28" fill="${palette.accent}" opacity="0.24"/>
+  <path d="M54 165 Q96 136 138 165 Z" fill="${palette.top}"/>
+  <circle cx="96" cy="98" r="45" fill="${palette.skin}"/>
+  <path d="${hairPath}" fill="${palette.hair}"/>
+  <circle cx="80" cy="103" r="5" fill="#171717"/>
+  <circle cx="112" cy="103" r="5" fill="#171717"/>
+  <path d="${smilePath}" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round"/>
+  <text x="96" y="178" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#ffffff">${escapedInitials}</text>
+</svg>`;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function isPrivacyAvatar(avatar?: string): avatar is string {
+  return avatar?.startsWith("data:image/svg+xml") ?? false;
+}
+
+function loadImageFromFile(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read that photo."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function extractPaletteFromPhoto(file: File): Promise<Partial<AvatarPalette>> {
+  const image = await loadImageFromFile(file);
+  const canvas = document.createElement("canvas");
+  const sampleSize = 32;
+  canvas.width = sampleSize;
+  canvas.height = sampleSize;
+
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("Your browser could not create a privacy avatar.");
+  }
+
+  context.drawImage(image, 0, 0, sampleSize, sampleSize);
+  const pixels = context.getImageData(0, 0, sampleSize, sampleSize).data;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+
+  for (let index = 0; index < pixels.length; index += 16) {
+    const alpha = pixels[index + 3];
+    if (alpha < 128) continue;
+
+    red += pixels[index];
+    green += pixels[index + 1];
+    blue += pixels[index + 2];
+    count += 1;
+  }
+
+  if (count === 0) {
+    throw new Error("That photo did not have enough visible color to sample.");
+  }
+
+  const accent = colorFromRgb(
+    Math.round(red / count),
+    Math.round(green / count),
+    Math.round(blue / count),
+  );
+
+  return {
+    background: adjustColor(accent, 72),
+    hair: adjustColor(accent, -68),
+    top: adjustColor(accent, -28),
+    accent,
+  };
+}
+
+const LOCAL_PRIVACY_AVATAR_PLUGIN: AvatarPlugin = {
+  id: "local-privacy-avatar",
+  name: "AI privacy avatar",
+  description:
+    "Creates a non-real avatar from photo colors in the browser. The original photo is never uploaded or saved.",
+  async generateAvatar({ photo, displayName }) {
+    const palette = await extractPaletteFromPhoto(photo);
+    return createPrivacyAvatar(displayName, palette);
+  },
+};
+
 const SEED_PROFILES: VLGProfile[] = [
   {
     id: "p1",
@@ -42,7 +260,7 @@ const SEED_PROFILES: VLGProfile[] = [
     bio: "Love parks and fresh air.",
     membership: "Silver",
     safetyVerified: true,
-    avatar: "https://api.dicebear.com/9.x/thumbs/svg?seed=Ava",
+    avatar: createPrivacyAvatar("Ava"),
   },
   {
     id: "p2",
@@ -61,7 +279,7 @@ const SEED_PROFILES: VLGProfile[] = [
     bio: "STEM mom.",
     membership: "Gold",
     safetyVerified: true,
-    avatar: "https://api.dicebear.com/9.x/thumbs/svg?seed=Maya",
+    avatar: createPrivacyAvatar("Maya"),
   },
   {
     id: "p3",
@@ -80,7 +298,7 @@ const SEED_PROFILES: VLGProfile[] = [
     bio: "Big on curiosity and low-pressure hangouts.",
     membership: "Gold",
     safetyVerified: true,
-    avatar: "https://api.dicebear.com/9.x/thumbs/svg?seed=Jordan",
+    avatar: createPrivacyAvatar("Jordan"),
   },
   {
     id: "p4",
@@ -99,7 +317,7 @@ const SEED_PROFILES: VLGProfile[] = [
     bio: "Looking for weekday mom friends nearby.",
     membership: "Bronze",
     safetyVerified: false,
-    avatar: "https://api.dicebear.com/9.x/thumbs/svg?seed=Leila",
+    avatar: createPrivacyAvatar("Leila"),
   },
   {
     id: "p5",
@@ -118,7 +336,7 @@ const SEED_PROFILES: VLGProfile[] = [
     bio: "Two energetic kids, always up for easy weekend plans.",
     membership: "Silver",
     safetyVerified: true,
-    avatar: "https://api.dicebear.com/9.x/thumbs/svg?seed=Sonia",
+    avatar: createPrivacyAvatar("Sonia"),
   },
 ];
 
@@ -140,7 +358,7 @@ const DEFAULT_ME: VLGProfile = {
   bio: "Single mom",
   membership: "Bronze",
   safetyVerified: false,
-  avatar: "https://api.dicebear.com/9.x/thumbs/svg?seed=Iris",
+  avatar: createPrivacyAvatar("Iris"),
 };
 
 const SEED_PROFILE_BY_ID = new Map(
@@ -203,6 +421,7 @@ function normalizeProfile(
   const availability = profile?.availability ?? base.availability;
   const preferredDates = profile?.preferredDates ?? base.preferredDates;
   const everydayMoments = profile?.everydayMoments ?? base.everydayMoments;
+  const avatar = isPrivacyAvatar(profile?.avatar) ? profile.avatar : base.avatar;
 
   return {
     ...base,
@@ -212,6 +431,7 @@ function normalizeProfile(
     availability: [...availability],
     preferredDates: [...preferredDates],
     everydayMoments: [...everydayMoments],
+    avatar,
   };
 }
 
@@ -435,6 +655,11 @@ export default function Page() {
     if (typeof window === "undefined") return [];
     return normalizeHistory(parseStoredValue<Partial<SwipeHistoryEntry>[]>("history"));
   });
+  const [avatarMessage, setAvatarMessage] = useState(
+    "Use a private avatar instead of real mom or kid photos.",
+  );
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -448,6 +673,61 @@ export default function Page() {
 
   function startApp() {
     setMe(cloneProfile(DEFAULT_ME));
+  }
+
+  async function handleAvatarPhotoChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const photo = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!photo || !me) return;
+
+    if (!photo.type.startsWith("image/")) {
+      setAvatarError("Please choose an image file.");
+      return;
+    }
+
+    if (photo.size > 8 * 1024 * 1024) {
+      setAvatarError("Please choose a photo under 8 MB.");
+      return;
+    }
+
+    setIsGeneratingAvatar(true);
+    setAvatarError(null);
+    setAvatarMessage("Creating a private avatar on this device...");
+
+    try {
+      const avatar = await LOCAL_PRIVACY_AVATAR_PLUGIN.generateAvatar({
+        photo,
+        displayName: me.name,
+      });
+      setMe((currentProfile) =>
+        currentProfile ? { ...currentProfile, avatar } : currentProfile,
+      );
+      setAvatarMessage(
+        "Privacy avatar created. The original photo was not uploaded or saved.",
+      );
+    } catch (error) {
+      setAvatarError(
+        error instanceof Error
+          ? error.message
+          : "Could not create a privacy avatar from that photo.",
+      );
+      setAvatarMessage("Use a private avatar instead of real mom or kid photos.");
+    } finally {
+      setIsGeneratingAvatar(false);
+    }
+  }
+
+  function resetMyAvatar() {
+    setMe((currentProfile) =>
+      currentProfile
+        ? { ...currentProfile, avatar: createPrivacyAvatar(currentProfile.name) }
+        : currentProfile,
+    );
+    setAvatarError(null);
+    setAvatarMessage("Reset to a generated privacy avatar.");
   }
 
   function swipeCurrent(direction: Swipe) {
@@ -574,6 +854,48 @@ export default function Page() {
             </button>
           </div>
         </div>
+
+        <section className="mb-5 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <img
+              src={me.avatar}
+              alt={`${me.name} privacy avatar`}
+              className="h-20 w-20 rounded-2xl bg-neutral-800"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-200">
+                {LOCAL_PRIVACY_AVATAR_PLUGIN.name}
+              </p>
+              <h2 className="text-lg font-bold">Create a private avatar</h2>
+              <p className="mt-1 text-sm text-neutral-300">
+                {LOCAL_PRIVACY_AVATAR_PLUGIN.description}
+              </p>
+              <p className="mt-2 text-sm text-neutral-400">{avatarMessage}</p>
+              {avatarError ? (
+                <p className="mt-2 text-sm text-red-300">{avatarError}</p>
+              ) : null}
+            </div>
+            <div className="grid gap-2 sm:w-44">
+              <label className="cursor-pointer rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-black">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={handleAvatarPhotoChange}
+                  disabled={isGeneratingAvatar}
+                />
+                {isGeneratingAvatar ? "Creating..." : "Use photo"}
+              </label>
+              <button
+                className="rounded-xl border border-neutral-700 px-4 py-3 text-sm font-semibold text-neutral-200 disabled:opacity-50"
+                onClick={resetMyAvatar}
+                disabled={isGeneratingAvatar}
+              >
+                Reset avatar
+              </button>
+            </div>
+          </div>
+        </section>
 
         {current ? (
           <section className="bg-white text-black rounded-2xl p-5 shadow-lg">
