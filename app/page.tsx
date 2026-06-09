@@ -70,39 +70,39 @@ type SetupMultiSelectField =
 
 const AVATAR_PALETTES: AvatarPalette[] = [
   {
-    background: "#fef3c7",
-    hair: "#7c2d12",
-    top: "#0f766e",
-    accent: "#f59e0b",
-    skin: "#f2c6a0",
+    background: "#fbf4e8",
+    hair: "#21160d",
+    top: "#8f6f32",
+    accent: "#d7b46a",
+    skin: "#d9a875",
   },
   {
-    background: "#e0f2fe",
-    hair: "#1e293b",
-    top: "#2563eb",
-    accent: "#38bdf8",
-    skin: "#d8a47f",
-  },
-  {
-    background: "#fce7f3",
-    hair: "#581c87",
-    top: "#be185d",
-    accent: "#f472b6",
-    skin: "#8d5524",
-  },
-  {
-    background: "#dcfce7",
-    hair: "#3f2a1d",
-    top: "#15803d",
-    accent: "#84cc16",
+    background: "#fffaf0",
+    hair: "#3a2a18",
+    top: "#15110d",
+    accent: "#caa45d",
     skin: "#c68642",
   },
   {
-    background: "#ede9fe",
-    hair: "#312e81",
-    top: "#7c3aed",
-    accent: "#a78bfa",
+    background: "#f4ead7",
+    hair: "#17120d",
+    top: "#b58a3b",
+    accent: "#efe0bd",
+    skin: "#8d5524",
+  },
+  {
+    background: "#f8f1e4",
+    hair: "#2c2014",
+    top: "#5d4525",
+    accent: "#d8bd7a",
     skin: "#e0ac69",
+  },
+  {
+    background: "#fffdf8",
+    hair: "#0f0c09",
+    top: "#a88445",
+    accent: "#f1d99b",
+    skin: "#f2c6a0",
   },
 ];
 
@@ -240,17 +240,22 @@ async function extractPaletteFromPhoto(file: File): Promise<Partial<AvatarPalett
     throw new Error("That photo did not have enough visible color to sample.");
   }
 
-  const accent = colorFromRgb(
-    Math.round(red / count),
-    Math.round(green / count),
-    Math.round(blue / count),
-  );
+  const luminance =
+    (Math.round(red / count) * 0.299 +
+      Math.round(green / count) * 0.587 +
+      Math.round(blue / count) * 0.114) /
+    255;
+  const palette = AVATAR_PALETTES[
+    Math.min(
+      AVATAR_PALETTES.length - 1,
+      Math.floor(luminance * AVATAR_PALETTES.length),
+    )
+  ];
 
   return {
-    background: adjustColor(accent, 72),
-    hair: adjustColor(accent, -68),
-    top: adjustColor(accent, -28),
-    accent,
+    ...palette,
+    background: adjustColor(palette.background, luminance > 0.55 ? 8 : -8),
+    accent: luminance > 0.55 ? "#f1d99b" : "#caa45d",
   };
 }
 
@@ -988,22 +993,22 @@ export default function Page() {
 
   if (!me) {
     return (
-      <main className="min-h-screen bg-neutral-950 text-white p-4 sm:p-6">
+      <main className="min-h-screen bg-[#120f0b] text-[#fffaf0] p-4 sm:p-6">
         <div className="mx-auto max-w-3xl space-y-5">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-amber-200">
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#d7b46a]">
               Setup quiz
             </p>
             <h1 className="mt-1 text-3xl font-bold">Build your mom village</h1>
-            <p className="mt-2 text-neutral-300">
+            <p className="mt-2 text-[#efe0bd]">
               Tell VLG the everyday rhythms that actually make hangouts possible
               before you start matching.
             </p>
           </div>
 
-          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
             <h2 className="text-xl font-bold">Your basics</h2>
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-[#6f604d]">
               These answers become your local profile. No backend is connected.
             </p>
 
@@ -1011,7 +1016,7 @@ export default function Page() {
               <label className="grid gap-2 text-sm font-semibold">
                 Your name
                 <input
-                  className="rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  className="rounded-xl border border-[#d7b46a]/50 bg-white px-3 py-3 text-base font-normal"
                   value={setupForm.name}
                   onChange={(event) =>
                     updateSetupField("name", event.target.value)
@@ -1022,7 +1027,7 @@ export default function Page() {
               <label className="grid gap-2 text-sm font-semibold">
                 Neighborhood
                 <select
-                  className="rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  className="rounded-xl border border-[#d7b46a]/50 bg-white px-3 py-3 text-base font-normal"
                   value={setupForm.neighborhood}
                   onChange={(event) =>
                     updateSetupField("neighborhood", event.target.value)
@@ -1039,7 +1044,7 @@ export default function Page() {
               <label className="grid gap-2 text-sm font-semibold">
                 Kid ages
                 <input
-                  className="rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  className="rounded-xl border border-[#d7b46a]/50 bg-white px-3 py-3 text-base font-normal"
                   placeholder="Example: 4, 7"
                   value={setupForm.kidsAgesText}
                   onChange={(event) =>
@@ -1051,7 +1056,7 @@ export default function Page() {
               <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
                 Short bio
                 <textarea
-                  className="min-h-24 rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  className="min-h-24 rounded-xl border border-[#d7b46a]/50 bg-white px-3 py-3 text-base font-normal"
                   value={setupForm.bio}
                   onChange={(event) =>
                     updateSetupField("bio", event.target.value)
@@ -1061,14 +1066,14 @@ export default function Page() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-black shadow-lg">
-            <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">
+          <section className="rounded-2xl border border-[#caa45d] bg-[#f4ead7] p-5 text-[#1b1712] shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#8f6f32]">
               {LOCAL_CALENDAR_SETUP_PLUGIN.name}
             </p>
             <h2 className="mt-1 text-xl font-bold">
               Prime days and times for hangouts
             </h2>
-            <p className="mt-1 text-sm text-amber-950">
+            <p className="mt-1 text-sm text-[#3a2a18]">
               {LOCAL_CALENDAR_SETUP_PLUGIN.description}
             </p>
 
@@ -1081,8 +1086,8 @@ export default function Page() {
                     key={time}
                     className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
                       selected
-                        ? "border-amber-900 bg-amber-900 text-white"
-                        : "border-amber-200 bg-white text-amber-950"
+                        ? "border-[#120f0b] bg-[#120f0b] text-[#fffaf0]"
+                        : "border-[#d7b46a]/60 bg-[#fffaf0] text-[#3a2a18]"
                     }`}
                     onClick={() => toggleSetupOption("availability", time)}
                   >
@@ -1093,9 +1098,9 @@ export default function Page() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
             <h2 className="text-xl font-bold">Parenting values</h2>
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-[#6f604d]">
               Choose the values that make another mom feel easy to be around.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -1107,8 +1112,8 @@ export default function Page() {
                     key={value}
                     className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                       selected
-                        ? "border-black bg-black text-white"
-                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                        ? "border-[#120f0b] bg-[#120f0b] text-[#fffaf0]"
+                        : "border-[#d7b46a]/40 bg-[#fbf4e8] text-[#5d4525]"
                     }`}
                     onClick={() => toggleSetupOption("values", value)}
                   >
@@ -1119,9 +1124,9 @@ export default function Page() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
             <h2 className="text-xl font-bold">Everyday moments</h2>
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-[#6f604d]">
               Pick the small windows where you would realistically connect.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -1133,8 +1138,8 @@ export default function Page() {
                     key={moment}
                     className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                       selected
-                        ? "border-black bg-black text-white"
-                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                        ? "border-[#120f0b] bg-[#120f0b] text-[#fffaf0]"
+                        : "border-[#d7b46a]/40 bg-[#fbf4e8] text-[#5d4525]"
                     }`}
                     onClick={() => toggleSetupOption("everydayMoments", moment)}
                   >
@@ -1145,9 +1150,9 @@ export default function Page() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
             <h2 className="text-xl font-bold">Hangout style</h2>
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-[#6f604d]">
               These guide playdate style without putting scheduling controls on
               individual cards.
             </p>
@@ -1160,8 +1165,8 @@ export default function Page() {
                     key={style}
                     className={`rounded-full border px-4 py-2 text-sm font-semibold ${
                       selected
-                        ? "border-black bg-black text-white"
-                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                        ? "border-[#120f0b] bg-[#120f0b] text-[#fffaf0]"
+                        : "border-[#d7b46a]/40 bg-[#fbf4e8] text-[#5d4525]"
                     }`}
                     onClick={() => toggleSetupOption("preferredDates", style)}
                   >
@@ -1173,13 +1178,13 @@ export default function Page() {
           </section>
 
           {setupError ? (
-            <p className="rounded-xl border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-100">
+            <p className="rounded-xl border border-[#caa45d] bg-[#3a2a18] px-4 py-3 text-sm text-[#fffaf0]">
               {setupError}
             </p>
           ) : null}
 
           <button
-            className="w-full rounded-2xl bg-white px-5 py-4 text-lg font-bold text-black"
+            className="w-full rounded-2xl bg-[#d7b46a] px-5 py-4 text-lg font-bold text-[#120f0b] shadow-lg shadow-black/30"
             onClick={startApp}
           >
             Start matching
@@ -1193,27 +1198,27 @@ export default function Page() {
   const matchSummary = current ? calculateMatchSummary(me, current) : null;
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white p-6">
+    <main className="min-h-screen bg-[#120f0b] text-[#fffaf0] p-6">
       <div className="max-w-xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">VLG</h1>
-            <p className="text-neutral-400">Mom Match MVP</p>
-            <p className="text-xs text-neutral-500 mt-1">
+            <p className="text-[#efe0bd]">Mom Match MVP</p>
+            <p className="text-xs text-[#d7b46a] mt-1">
               {queue.length} profiles left
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              className="text-sm border border-neutral-700 px-3 py-2 rounded-lg disabled:opacity-40"
+              className="text-sm border border-[#d7b46a]/50 px-3 py-2 rounded-lg text-[#fffaf0] disabled:opacity-40"
               onClick={rewindLastSwipe}
               disabled={history.length === 0}
             >
               Rewind
             </button>
             <button
-              className="text-sm border border-neutral-700 px-3 py-2 rounded-lg"
+              className="text-sm border border-[#d7b46a]/50 px-3 py-2 rounded-lg text-[#fffaf0]"
               onClick={resetApp}
             >
               Reset
@@ -1221,28 +1226,28 @@ export default function Page() {
           </div>
         </div>
 
-        <section className="mb-5 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+        <section className="mb-5 rounded-2xl border border-[#d7b46a]/35 bg-[#1b1712] p-4 shadow-lg shadow-black/25">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <img
               src={me.avatar}
               alt={`${me.name} privacy avatar`}
-              className="h-20 w-20 rounded-2xl bg-neutral-800"
+              className="h-20 w-20 rounded-2xl bg-[#2c2014]"
             />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-200">
+              <p className="text-sm font-semibold text-[#d7b46a]">
                 {LOCAL_PRIVACY_AVATAR_PLUGIN.name}
               </p>
               <h2 className="text-lg font-bold">Create a private avatar</h2>
-              <p className="mt-1 text-sm text-neutral-300">
+              <p className="mt-1 text-sm text-[#efe0bd]">
                 {LOCAL_PRIVACY_AVATAR_PLUGIN.description}
               </p>
-              <p className="mt-2 text-sm text-neutral-400">{avatarMessage}</p>
+              <p className="mt-2 text-sm text-[#d8bd7a]">{avatarMessage}</p>
               {avatarError ? (
-                <p className="mt-2 text-sm text-red-300">{avatarError}</p>
+                <p className="mt-2 text-sm text-[#f1d99b]">{avatarError}</p>
               ) : null}
             </div>
             <div className="grid gap-2 sm:w-44">
-              <label className="cursor-pointer rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-black">
+              <label className="cursor-pointer rounded-xl bg-[#d7b46a] px-4 py-3 text-center text-sm font-semibold text-[#120f0b]">
                 <input
                   type="file"
                   accept="image/*"
@@ -1253,7 +1258,7 @@ export default function Page() {
                 {isGeneratingAvatar ? "Creating..." : "Use photo"}
               </label>
               <button
-                className="rounded-xl border border-neutral-700 px-4 py-3 text-sm font-semibold text-neutral-200 disabled:opacity-50"
+                className="rounded-xl border border-[#d7b46a]/50 px-4 py-3 text-sm font-semibold text-[#fffaf0] disabled:opacity-50"
                 onClick={resetMyAvatar}
                 disabled={isGeneratingAvatar}
               >
@@ -1265,7 +1270,7 @@ export default function Page() {
 
         {current ? (
           <>
-            <section className="bg-white text-black rounded-2xl p-5 shadow-lg">
+            <section className="rounded-2xl border border-[#d7b46a]/45 bg-[#fffaf0] text-[#1b1712] p-5 shadow-lg">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-4">
                   <img
@@ -1275,19 +1280,19 @@ export default function Page() {
                   />
                   <div>
                     <h2 className="text-2xl font-bold">{current.name}</h2>
-                    <p className="text-neutral-600">{current.neighborhood}</p>
+                    <p className="text-[#6f604d]">{current.neighborhood}</p>
                   </div>
                 </div>
 
                 {matchSummary ? (
-                  <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:max-w-56">
-                    <p className="text-3xl font-black text-amber-900">
+                  <div className="rounded-2xl bg-[#f4ead7] border border-[#d7b46a] p-4 sm:max-w-56">
+                    <p className="text-3xl font-black text-[#5d4525]">
                       {matchSummary.percentage}%
                     </p>
-                    <p className="text-sm font-semibold text-amber-900">
+                    <p className="text-sm font-semibold text-[#5d4525]">
                       village match
                     </p>
-                    <ul className="mt-3 space-y-1 text-sm text-amber-950">
+                    <ul className="mt-3 space-y-1 text-sm text-[#3a2a18]">
                       {matchSummary.reasons.map((reason) => (
                         <li key={reason}>- {reason}</li>
                       ))}
@@ -1302,15 +1307,15 @@ export default function Page() {
                 {current.values.map((value) => (
                   <span
                     key={value}
-                    className="text-xs bg-neutral-100 border px-3 py-1 rounded-full"
+                    className="text-xs bg-[#fbf4e8] border border-[#d7b46a]/40 px-3 py-1 rounded-full text-[#5d4525]"
                   >
                     {value}
                   </span>
                 ))}
               </div>
 
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-neutral-500">
+              <div className="mt-5 rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-[#8f6f32]">
                   Everyday overlap
                 </h3>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -1318,13 +1323,13 @@ export default function Page() {
                     matchSummary.sharedEverydayMoments.map((moment) => (
                       <span
                         key={moment}
-                        className="rounded-full bg-white border border-neutral-200 px-3 py-1 text-sm font-medium"
+                        className="rounded-full bg-white border border-[#d7b46a]/45 px-3 py-1 text-sm font-medium text-[#3a2a18]"
                       >
                         {moment}
                       </span>
                     ))
                   ) : (
-                    <p className="text-sm text-neutral-500">
+                    <p className="text-sm text-[#6f604d]">
                       No exact everyday overlap yet.
                     </p>
                   )}
@@ -1334,13 +1339,13 @@ export default function Page() {
 
             <div className="mt-4 grid grid-cols-2 gap-4 pb-6">
               <button
-                className="rounded-2xl border border-neutral-700 bg-neutral-900 px-5 py-4 font-semibold text-white shadow-lg"
+                className="rounded-2xl border border-[#d7b46a]/50 bg-[#1b1712] px-5 py-4 font-semibold text-[#fffaf0] shadow-lg"
                 onClick={() => swipeCurrent("pass")}
               >
                 Pass
               </button>
               <button
-                className="rounded-2xl bg-white px-5 py-4 font-semibold text-black shadow-lg"
+                className="rounded-2xl bg-[#d7b46a] px-5 py-4 font-semibold text-[#120f0b] shadow-lg"
                 onClick={() => swipeCurrent("like")}
               >
                 Like
@@ -1348,36 +1353,36 @@ export default function Page() {
             </div>
           </>
         ) : (
-          <section className="bg-white text-black rounded-2xl p-5 space-y-5">
+          <section className="rounded-2xl border border-[#d7b46a]/45 bg-[#fffaf0] text-[#1b1712] p-5 space-y-5">
             <h2 className="text-xl font-bold">No more profiles</h2>
-            <p className="text-neutral-600 mt-2">
+            <p className="text-[#6f604d] mt-2">
               Reset the demo to start again.
             </p>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-xl border border-neutral-200 p-3">
+              <div className="rounded-xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-3">
                 <p className="text-2xl font-bold">{likes.length}</p>
-                <p className="text-xs text-neutral-500">Likes</p>
+                <p className="text-xs text-[#8f6f32]">Likes</p>
               </div>
-              <div className="rounded-xl border border-neutral-200 p-3">
+              <div className="rounded-xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-3">
                 <p className="text-2xl font-bold">{passes.length}</p>
-                <p className="text-xs text-neutral-500">Passes</p>
+                <p className="text-xs text-[#8f6f32]">Passes</p>
               </div>
-              <div className="rounded-xl border border-neutral-200 p-3">
+              <div className="rounded-xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-3">
                 <p className="text-2xl font-bold">{matches.length}</p>
-                <p className="text-xs text-neutral-500">Matches</p>
+                <p className="text-xs text-[#8f6f32]">Matches</p>
               </div>
             </div>
 
             {matches.length > 0 ? (
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-[#8f6f32] mb-2">
                   Matches
                 </h3>
                 <ul className="space-y-2">
                   {matches.map((profile) => (
                     <li
                       key={profile.id}
-                      className="flex items-center gap-3 rounded-xl border border-neutral-200 p-3"
+                      className="flex items-center gap-3 rounded-xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-3"
                     >
                       <img
                         src={profile.avatar}
@@ -1386,7 +1391,7 @@ export default function Page() {
                       />
                       <div>
                         <p className="font-medium">{profile.name}</p>
-                        <p className="text-sm text-neutral-500">
+                        <p className="text-sm text-[#6f604d]">
                           {profile.neighborhood}
                         </p>
                       </div>
