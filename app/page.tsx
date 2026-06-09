@@ -1210,7 +1210,7 @@ export default function Page() {
 
           <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
             <h2 className="text-xl font-bold">
-              Kids' support needs & accommodations
+              Kids&apos; support needs & accommodations
             </h2>
             <p className="mt-1 text-sm text-[#6f604d]">
               Share sensory, developmental, mobility, medical, or social
@@ -1538,7 +1538,7 @@ export default function Page() {
 
               <div className="mt-5 rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
                 <h3 className="text-sm font-bold uppercase tracking-wide text-[#8f6f32]">
-                  Kids' support needs
+                  Kids&apos; support needs
                 </h3>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {current.supportNeeds.map((need) => (
