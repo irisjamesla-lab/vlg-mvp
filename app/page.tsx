@@ -12,6 +12,8 @@ type VLGProfile = {
   availability: string[];
   preferredDates: string[];
   everydayMoments: string[];
+  dietaryNeeds: string[];
+  dietaryNotes: string;
   bio: string;
   membership: "Bronze" | "Silver" | "Gold";
   safetyVerified: boolean;
@@ -60,10 +62,13 @@ type SetupProfileForm = {
   preferredDates: string[];
   everydayMoments: string[];
   availability: string[];
+  dietaryNeeds: string[];
+  dietaryNotes: string;
 };
 
 type SetupMultiSelectField =
   | "availability"
+  | "dietaryNeeds"
   | "everydayMoments"
   | "preferredDates"
   | "values";
@@ -325,6 +330,21 @@ const EVERYDAY_MOMENT_OPTIONS = [
   "Mom-only coffee",
 ];
 
+const DIETARY_NEED_OPTIONS = [
+  "No major restrictions",
+  "Allergy-aware snacks",
+  "Nut-free friendly",
+  "Dairy-free friendly",
+  "Gluten-free friendly",
+  "Low-sugar preferred",
+  "Vegetarian snacks",
+  "Vegan snacks",
+  "Halal-friendly",
+  "Kosher-friendly",
+  "Bring our own snacks",
+  "Ask before sharing food",
+];
+
 const PRIME_HANGOUT_OPTIONS = [
   "Mon AM",
   "Mon PM",
@@ -357,6 +377,9 @@ const SEED_PROFILES: VLGProfile[] = [
       "Walk while kids play",
       "Park bench hang",
     ],
+    dietaryNeeds: ["Nut-free friendly", "Bring our own snacks"],
+    dietaryNotes:
+      "Nut-free snacks are easiest. We are happy to bring our own food to park hangs.",
     bio: "Love parks and fresh air.",
     membership: "Silver",
     safetyVerified: true,
@@ -376,6 +399,9 @@ const SEED_PROFILES: VLGProfile[] = [
       "After-school snack",
       "Errand buddy",
     ],
+    dietaryNeeds: ["Low-sugar preferred", "Dairy-free friendly"],
+    dietaryNotes:
+      "Low-sugar snacks help our afternoons go better. Dairy-free options are appreciated.",
     bio: "STEM mom.",
     membership: "Gold",
     safetyVerified: true,
@@ -395,6 +421,9 @@ const SEED_PROFILES: VLGProfile[] = [
       "Park bench hang",
       "Mom-only coffee",
     ],
+    dietaryNeeds: ["Vegetarian snacks", "Allergy-aware snacks"],
+    dietaryNotes:
+      "Vegetarian snacks work best, and I always check before kids share food.",
     bio: "Big on curiosity and low-pressure hangouts.",
     membership: "Gold",
     safetyVerified: true,
@@ -414,6 +443,9 @@ const SEED_PROFILES: VLGProfile[] = [
       "Workout class nearby",
       "Coffee between activities",
     ],
+    dietaryNeeds: ["No major restrictions", "Ask before sharing food"],
+    dietaryNotes:
+      "No major restrictions, but I prefer checking with parents before snack sharing.",
     bio: "Looking for weekday mom friends nearby.",
     membership: "Bronze",
     safetyVerified: false,
@@ -433,6 +465,9 @@ const SEED_PROFILES: VLGProfile[] = [
       "Farmers market",
       "After-school snack",
     ],
+    dietaryNeeds: ["Gluten-free friendly", "Bring our own snacks"],
+    dietaryNotes:
+      "One kid does better with gluten-free snacks, so we usually bring our own.",
     bio: "Two energetic kids, always up for easy weekend plans.",
     membership: "Silver",
     safetyVerified: true,
@@ -455,6 +490,9 @@ const DEFAULT_ME: VLGProfile = {
     "Park bench hang",
     "Mom-only coffee",
   ],
+  dietaryNeeds: ["Allergy-aware snacks", "Bring our own snacks"],
+  dietaryNotes:
+    "I like allergy-aware snack plans and am comfortable bringing our own food.",
   bio: "Single mom",
   membership: "Bronze",
   safetyVerified: false,
@@ -471,6 +509,8 @@ function createDefaultSetupForm(): SetupProfileForm {
     preferredDates: [...DEFAULT_ME.preferredDates],
     everydayMoments: [...DEFAULT_ME.everydayMoments],
     availability: [...DEFAULT_ME.availability],
+    dietaryNeeds: [...DEFAULT_ME.dietaryNeeds],
+    dietaryNotes: DEFAULT_ME.dietaryNotes,
   };
 }
 
@@ -511,6 +551,8 @@ function createProfileFromSetup(form: SetupProfileForm): VLGProfile {
       form.everydayMoments,
       DEFAULT_ME.everydayMoments,
     ),
+    dietaryNeeds: fallbackToDefault(form.dietaryNeeds, DEFAULT_ME.dietaryNeeds),
+    dietaryNotes: form.dietaryNotes.trim() || DEFAULT_ME.dietaryNotes,
     bio: form.bio.trim() || DEFAULT_ME.bio,
     avatar: createPrivacyAvatar(name),
   };
@@ -542,6 +584,7 @@ type MatchSummary = {
   percentage: number;
   reasons: string[];
   sharedEverydayMoments: string[];
+  sharedDietaryNeeds: string[];
 };
 
 function cloneProfile(profile: VLGProfile): VLGProfile {
@@ -552,6 +595,7 @@ function cloneProfile(profile: VLGProfile): VLGProfile {
     availability: [...profile.availability],
     preferredDates: [...profile.preferredDates],
     everydayMoments: [...profile.everydayMoments],
+    dietaryNeeds: [...profile.dietaryNeeds],
   };
 }
 
@@ -576,6 +620,7 @@ function normalizeProfile(
   const availability = profile?.availability ?? base.availability;
   const preferredDates = profile?.preferredDates ?? base.preferredDates;
   const everydayMoments = profile?.everydayMoments ?? base.everydayMoments;
+  const dietaryNeeds = profile?.dietaryNeeds ?? base.dietaryNeeds;
   const avatar = isPrivacyAvatar(profile?.avatar) ? profile.avatar : base.avatar;
 
   return {
@@ -586,6 +631,8 @@ function normalizeProfile(
     availability: [...availability],
     preferredDates: [...preferredDates],
     everydayMoments: [...everydayMoments],
+    dietaryNeeds: [...dietaryNeeds],
+    dietaryNotes: profile?.dietaryNotes ?? base.dietaryNotes,
     avatar,
   };
 }
@@ -707,7 +754,11 @@ function safetyLifestyleScore(me: VLGProfile, profile: VLGProfile) {
   let score = profile.safetyVerified ? 0.6 : 0;
 
   if (hasOutdoorOrPublicPreference(me) && hasOutdoorOrPublicPreference(profile)) {
-    score += 0.4;
+    score += 0.25;
+  }
+
+  if (sharedItems(me.dietaryNeeds, profile.dietaryNeeds).length > 0) {
+    score += 0.15;
   }
 
   return Math.min(score, 1);
@@ -743,6 +794,7 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
     me.everydayMoments,
     profile.everydayMoments,
   );
+  const sharedDietaryNeeds = sharedItems(me.dietaryNeeds, profile.dietaryNeeds);
   const playdateScore = tokenOverlapScore(me.preferredDates, profile.preferredDates);
   const ageScore = childAgeScore(me, profile);
   const localScore = locationScore(me, profile);
@@ -767,6 +819,7 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
       : "",
     ageScore >= 0.6 ? "Kids are close in age" : "",
     sharedValues.length > 0 ? "Similar parenting values" : "",
+    sharedDietaryNeeds[0] ? `Shared snack comfort: ${sharedDietaryNeeds[0]}` : "",
     playdateScore > 0 || (hasOutdoorOrPublicPreference(me) && hasOutdoorOrPublicPreference(profile))
       ? "Both prefer outdoor/public meetups"
       : "",
@@ -778,6 +831,7 @@ function calculateMatchSummary(me: VLGProfile, profile: VLGProfile): MatchSummar
     percentage,
     reasons: uniqueReasons(reasonCandidates),
     sharedEverydayMoments,
+    sharedDietaryNeeds,
   };
 }
 
@@ -846,7 +900,7 @@ export default function Page() {
   }
 
   function updateSetupField(
-    field: "bio" | "kidsAgesText" | "name" | "neighborhood",
+    field: "bio" | "dietaryNotes" | "kidsAgesText" | "name" | "neighborhood",
     value: string,
   ) {
     setSetupForm((currentForm) => ({ ...currentForm, [field]: value }));
@@ -1064,6 +1118,45 @@ export default function Page() {
                 />
               </label>
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
+            <h2 className="text-xl font-bold">Dietary needs & snack safety</h2>
+            <p className="mt-1 text-sm text-[#6f604d]">
+              Add allergies, snack rules, and food comfort details before
+              matching so hangouts feel safer.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {DIETARY_NEED_OPTIONS.map((need) => {
+                const selected = setupForm.dietaryNeeds.includes(need);
+
+                return (
+                  <button
+                    key={need}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      selected
+                        ? "border-[#120f0b] bg-[#120f0b] text-[#fffaf0]"
+                        : "border-[#d7b46a]/45 bg-[#fbf4e8] text-[#5d4525]"
+                    }`}
+                    onClick={() => toggleSetupOption("dietaryNeeds", need)}
+                  >
+                    {need}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="mt-4 grid gap-2 text-sm font-semibold">
+              Detailed dietary notes
+              <textarea
+                className="min-h-24 rounded-xl border border-[#d7b46a]/50 bg-white px-3 py-3 text-base font-normal"
+                placeholder="Example: severe peanut allergy, no shared snacks, okay with packaged gluten-free snacks..."
+                value={setupForm.dietaryNotes}
+                onChange={(event) =>
+                  updateSetupField("dietaryNotes", event.target.value)
+                }
+              />
+            </label>
           </section>
 
           <section className="rounded-2xl border border-[#caa45d] bg-[#f4ead7] p-5 text-[#1b1712] shadow-lg">
@@ -1312,6 +1405,29 @@ export default function Page() {
                     {value}
                   </span>
                 ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-[#8f6f32]">
+                  Dietary needs
+                </h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {current.dietaryNeeds.map((need) => (
+                    <span
+                      key={need}
+                      className={`rounded-full border px-3 py-1 text-sm font-medium ${
+                        matchSummary?.sharedDietaryNeeds.includes(need)
+                          ? "border-[#8f6f32] bg-[#f4ead7] text-[#3a2a18]"
+                          : "border-[#d7b46a]/45 bg-white text-[#5d4525]"
+                      }`}
+                    >
+                      {need}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-[#6f604d]">
+                  {current.dietaryNotes}
+                </p>
               </div>
 
               <div className="mt-5 rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
