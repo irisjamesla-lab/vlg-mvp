@@ -1264,87 +1264,89 @@ export default function Page() {
         </section>
 
         {current ? (
-          <section className="bg-white text-black rounded-2xl p-5 shadow-lg">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-center gap-4">
-                <img
-                  src={current.avatar}
-                  alt={`${current.name} avatar`}
-                  className="w-20 h-20 rounded-2xl sm:w-24 sm:h-24"
-                />
-                <div>
-                  <h2 className="text-2xl font-bold">{current.name}</h2>
-                  <p className="text-neutral-600">{current.neighborhood}</p>
+          <>
+            <section className="bg-white text-black rounded-2xl p-5 shadow-lg">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={current.avatar}
+                    alt={`${current.name} avatar`}
+                    className="w-20 h-20 rounded-2xl sm:w-24 sm:h-24"
+                  />
+                  <div>
+                    <h2 className="text-2xl font-bold">{current.name}</h2>
+                    <p className="text-neutral-600">{current.neighborhood}</p>
+                  </div>
                 </div>
+
+                {matchSummary ? (
+                  <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:max-w-56">
+                    <p className="text-3xl font-black text-amber-900">
+                      {matchSummary.percentage}%
+                    </p>
+                    <p className="text-sm font-semibold text-amber-900">
+                      village match
+                    </p>
+                    <ul className="mt-3 space-y-1 text-sm text-amber-950">
+                      {matchSummary.reasons.map((reason) => (
+                        <li key={reason}>- {reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
 
-              {matchSummary ? (
-                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:max-w-56">
-                  <p className="text-3xl font-black text-amber-900">
-                    {matchSummary.percentage}%
-                  </p>
-                  <p className="text-sm font-semibold text-amber-900">
-                    village match
-                  </p>
-                  <ul className="mt-3 space-y-1 text-sm text-amber-950">
-                    {matchSummary.reasons.map((reason) => (
-                      <li key={reason}>- {reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
+              <p className="mt-4">{current.bio}</p>
 
-            <p className="mt-4">{current.bio}</p>
-
-            <div className="flex flex-wrap gap-2 mt-4">
-              {current.values.map((value) => (
-                <span
-                  key={value}
-                  className="text-xs bg-neutral-100 border px-3 py-1 rounded-full"
-                >
-                  {value}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-neutral-500">
-                Everyday overlap
-              </h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {matchSummary?.sharedEverydayMoments.length ? (
-                  matchSummary.sharedEverydayMoments.map((moment) => (
-                    <span
-                      key={moment}
-                      className="rounded-full bg-white border border-neutral-200 px-3 py-1 text-sm font-medium"
-                    >
-                      {moment}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-sm text-neutral-500">
-                    No exact everyday overlap yet.
-                  </p>
-                )}
+              <div className="flex flex-wrap gap-2 mt-4">
+                {current.values.map((value) => (
+                  <span
+                    key={value}
+                    className="text-xs bg-neutral-100 border px-3 py-1 rounded-full"
+                  >
+                    {value}
+                  </span>
+                ))}
               </div>
-            </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-neutral-500">
+                  Everyday overlap
+                </h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {matchSummary?.sharedEverydayMoments.length ? (
+                    matchSummary.sharedEverydayMoments.map((moment) => (
+                      <span
+                        key={moment}
+                        className="rounded-full bg-white border border-neutral-200 px-3 py-1 text-sm font-medium"
+                      >
+                        {moment}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-neutral-500">
+                      No exact everyday overlap yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <div className="mt-4 grid grid-cols-2 gap-4 pb-6">
               <button
-                className="border border-neutral-300 px-5 py-3 rounded-xl font-medium"
+                className="rounded-2xl border border-neutral-700 bg-neutral-900 px-5 py-4 font-semibold text-white shadow-lg"
                 onClick={() => swipeCurrent("pass")}
               >
                 Pass
               </button>
               <button
-                className="bg-black text-white px-5 py-3 rounded-xl font-medium"
+                className="rounded-2xl bg-white px-5 py-4 font-semibold text-black shadow-lg"
                 onClick={() => swipeCurrent("like")}
               >
                 Like
               </button>
             </div>
-          </section>
+          </>
         ) : (
           <section className="bg-white text-black rounded-2xl p-5 space-y-5">
             <h2 className="text-xl font-bold">No more profiles</h2>
