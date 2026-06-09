@@ -20,6 +20,7 @@ type VLGProfile = {
   membership: "Bronze" | "Silver" | "Gold";
   safetyVerified: boolean;
   avatar: string;
+  childAvatar: string;
 };
 
 type Swipe = "like" | "pass";
@@ -68,7 +69,11 @@ type SetupProfileForm = {
   availability: string[];
   dietaryNeeds: string[];
   dietaryNotes: string;
+  avatar: string;
+  childAvatar: string;
 };
+
+type SetupAvatarTarget = "child" | "mom";
 
 type SetupMultiSelectField =
   | "availability"
@@ -280,6 +285,18 @@ const LOCAL_PRIVACY_AVATAR_PLUGIN: AvatarPlugin = {
   },
 };
 
+function validateAvatarPhoto(photo: File) {
+  if (!photo.type.startsWith("image/")) {
+    return "Please choose an image file.";
+  }
+
+  if (photo.size > 8 * 1024 * 1024) {
+    return "Please choose a photo under 8 MB.";
+  }
+
+  return null;
+}
+
 const LOCAL_CALENDAR_SETUP_PLUGIN: CalendarSetupPlugin = {
   id: "local-prime-time-calendar",
   name: "Calendar setup",
@@ -412,6 +429,7 @@ const SEED_PROFILES: VLGProfile[] = [
     membership: "Silver",
     safetyVerified: true,
     avatar: createPrivacyAvatar("Ava"),
+    childAvatar: createPrivacyAvatar("Ava kids"),
   },
   {
     id: "p2",
@@ -441,6 +459,7 @@ const SEED_PROFILES: VLGProfile[] = [
     membership: "Gold",
     safetyVerified: true,
     avatar: createPrivacyAvatar("Maya"),
+    childAvatar: createPrivacyAvatar("Maya kid"),
   },
   {
     id: "p3",
@@ -470,6 +489,7 @@ const SEED_PROFILES: VLGProfile[] = [
     membership: "Gold",
     safetyVerified: true,
     avatar: createPrivacyAvatar("Jordan"),
+    childAvatar: createPrivacyAvatar("Jordan kids"),
   },
   {
     id: "p4",
@@ -499,6 +519,7 @@ const SEED_PROFILES: VLGProfile[] = [
     membership: "Bronze",
     safetyVerified: false,
     avatar: createPrivacyAvatar("Leila"),
+    childAvatar: createPrivacyAvatar("Leila kid"),
   },
   {
     id: "p5",
@@ -528,6 +549,7 @@ const SEED_PROFILES: VLGProfile[] = [
     membership: "Silver",
     safetyVerified: true,
     avatar: createPrivacyAvatar("Sonia"),
+    childAvatar: createPrivacyAvatar("Sonia kids"),
   },
 ];
 
@@ -560,6 +582,7 @@ const DEFAULT_ME: VLGProfile = {
   membership: "Bronze",
   safetyVerified: false,
   avatar: createPrivacyAvatar("Iris"),
+  childAvatar: createPrivacyAvatar("Iris child"),
 };
 
 function createDefaultSetupForm(): SetupProfileForm {
@@ -576,6 +599,8 @@ function createDefaultSetupForm(): SetupProfileForm {
     availability: [...DEFAULT_ME.availability],
     dietaryNeeds: [...DEFAULT_ME.dietaryNeeds],
     dietaryNotes: DEFAULT_ME.dietaryNotes,
+    avatar: DEFAULT_ME.avatar,
+    childAvatar: DEFAULT_ME.childAvatar,
   };
 }
 
@@ -622,7 +647,10 @@ function createProfileFromSetup(form: SetupProfileForm): VLGProfile {
     dietaryNeeds: fallbackToDefault(form.dietaryNeeds, DEFAULT_ME.dietaryNeeds),
     dietaryNotes: form.dietaryNotes.trim() || DEFAULT_ME.dietaryNotes,
     bio: form.bio.trim() || DEFAULT_ME.bio,
-    avatar: createPrivacyAvatar(name),
+    avatar: isPrivacyAvatar(form.avatar) ? form.avatar : createPrivacyAvatar(name),
+    childAvatar: isPrivacyAvatar(form.childAvatar)
+      ? form.childAvatar
+      : createPrivacyAvatar(`${name} child`),
   };
 }
 
@@ -693,6 +721,9 @@ function normalizeProfile(
   const everydayMoments = profile?.everydayMoments ?? base.everydayMoments;
   const dietaryNeeds = profile?.dietaryNeeds ?? base.dietaryNeeds;
   const avatar = isPrivacyAvatar(profile?.avatar) ? profile.avatar : base.avatar;
+  const childAvatar = isPrivacyAvatar(profile?.childAvatar)
+    ? profile.childAvatar
+    : base.childAvatar;
 
   return {
     ...base,
@@ -707,6 +738,7 @@ function normalizeProfile(
     dietaryNeeds: [...dietaryNeeds],
     dietaryNotes: profile?.dietaryNotes ?? base.dietaryNotes,
     avatar,
+    childAvatar,
   };
 }
 
@@ -951,6 +983,12 @@ export default function Page() {
   );
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
+  const [setupAvatarMessage, setSetupAvatarMessage] = useState(
+    "Upload mom and child photos to generate private avatars before matching.",
+  );
+  const [setupAvatarError, setSetupAvatarError] = useState<string | null>(null);
+  const [generatingSetupAvatar, setGeneratingSetupAvatar] =
+    useState<SetupAvatarTarget | null>(null);
   const [setupForm, setSetupForm] = useState<SetupProfileForm>(() =>
     createDefaultSetupForm(),
   );
@@ -1001,7 +1039,76 @@ export default function Page() {
     }));
   }
 
+  async function handleSetupAvatarPhotoChange(
+    target: SetupAvatarTarget,
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const photo = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!photo) return;
+
+    const validationError = validateAvatarPhoto(photo);
+    if (validationError) {
+      setSetupAvatarError(validationError);
+      return;
+    }
+
+    const name = setupForm.name.trim() || DEFAULT_ME.name;
+    const displayName = target === "mom" ? name : `${name} child`;
+    const label = target === "mom" ? "mom" : "child";
+
+    setGeneratingSetupAvatar(target);
+    setSetupAvatarError(null);
+    setSetupAvatarMessage(`Generating a private ${label} AI avatar...`);
+
+    try {
+      const avatar = await LOCAL_PRIVACY_AVATAR_PLUGIN.generateAvatar({
+        photo,
+        displayName,
+      });
+      setSetupForm((currentForm) => ({
+        ...currentForm,
+        [target === "mom" ? "avatar" : "childAvatar"]: avatar,
+      }));
+      setSetupAvatarMessage(
+        `Private ${label} avatar created. The original photo was not uploaded or saved.`,
+      );
+    } catch (error) {
+      setSetupAvatarError(
+        error instanceof Error
+          ? error.message
+          : `Could not create a private ${label} avatar from that photo.`,
+      );
+      setSetupAvatarMessage(
+        "Upload mom and child photos to generate private avatars before matching.",
+      );
+    } finally {
+      setGeneratingSetupAvatar(null);
+    }
+  }
+
+  function resetSetupAvatar(target: SetupAvatarTarget) {
+    const name = setupForm.name.trim() || DEFAULT_ME.name;
+    const avatar =
+      target === "mom"
+        ? createPrivacyAvatar(name)
+        : createPrivacyAvatar(`${name} child`);
+
+    setSetupForm((currentForm) => ({
+      ...currentForm,
+      [target === "mom" ? "avatar" : "childAvatar"]: avatar,
+    }));
+    setSetupAvatarError(null);
+    setSetupAvatarMessage(
+      target === "mom"
+        ? "Reset mom profile photo to a generated privacy avatar."
+        : "Reset child profile photo to a generated privacy avatar.",
+    );
+  }
+
   async function handleAvatarPhotoChange(
+    target: SetupAvatarTarget,
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
     const photo = event.target.files?.[0];
@@ -1009,36 +1116,38 @@ export default function Page() {
 
     if (!photo || !me) return;
 
-    if (!photo.type.startsWith("image/")) {
-      setAvatarError("Please choose an image file.");
+    const validationError = validateAvatarPhoto(photo);
+    if (validationError) {
+      setAvatarError(validationError);
       return;
     }
 
-    if (photo.size > 8 * 1024 * 1024) {
-      setAvatarError("Please choose a photo under 8 MB.");
-      return;
-    }
-
+    const label = target === "mom" ? "mom" : "child";
     setIsGeneratingAvatar(true);
     setAvatarError(null);
-    setAvatarMessage("Creating a private avatar on this device...");
+    setAvatarMessage(`Creating a private ${label} avatar on this device...`);
 
     try {
       const avatar = await LOCAL_PRIVACY_AVATAR_PLUGIN.generateAvatar({
         photo,
-        displayName: me.name,
+        displayName: target === "mom" ? me.name : `${me.name} child`,
       });
       setMe((currentProfile) =>
-        currentProfile ? { ...currentProfile, avatar } : currentProfile,
+        currentProfile
+          ? {
+              ...currentProfile,
+              [target === "mom" ? "avatar" : "childAvatar"]: avatar,
+            }
+          : currentProfile,
       );
       setAvatarMessage(
-        "Privacy avatar created. The original photo was not uploaded or saved.",
+        `Private ${label} avatar created. The original photo was not uploaded or saved.`,
       );
     } catch (error) {
       setAvatarError(
         error instanceof Error
           ? error.message
-          : "Could not create a privacy avatar from that photo.",
+          : `Could not create a private ${label} avatar from that photo.`,
       );
       setAvatarMessage("Use a private avatar instead of real mom or kid photos.");
     } finally {
@@ -1046,14 +1155,24 @@ export default function Page() {
     }
   }
 
-  function resetMyAvatar() {
+  function resetMyAvatar(target: SetupAvatarTarget) {
     setMe((currentProfile) =>
       currentProfile
-        ? { ...currentProfile, avatar: createPrivacyAvatar(currentProfile.name) }
+        ? {
+            ...currentProfile,
+            [target === "mom" ? "avatar" : "childAvatar"]:
+              target === "mom"
+                ? createPrivacyAvatar(currentProfile.name)
+                : createPrivacyAvatar(`${currentProfile.name} child`),
+          }
         : currentProfile,
     );
     setAvatarError(null);
-    setAvatarMessage("Reset to a generated privacy avatar.");
+    setAvatarMessage(
+      target === "mom"
+        ? "Reset mom profile photo to a generated privacy avatar."
+        : "Reset child profile photo to a generated privacy avatar.",
+    );
   }
 
   function swipeCurrent(direction: Swipe) {
@@ -1131,6 +1250,10 @@ export default function Page() {
     setHistory([]);
     setSetupForm(createDefaultSetupForm());
     setSetupError(null);
+    setSetupAvatarError(null);
+    setSetupAvatarMessage(
+      "Upload mom and child photos to generate private avatars before matching.",
+    );
   }
 
   if (!me) {
@@ -1205,6 +1328,106 @@ export default function Page() {
                   }
                 />
               </label>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#d7b46a]/40 bg-[#fffaf0] p-5 text-[#1b1712] shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#8f6f32]">
+              {LOCAL_PRIVACY_AVATAR_PLUGIN.name}
+            </p>
+            <h2 className="mt-1 text-xl font-bold">
+              Private mom & child profile photos
+            </h2>
+            <p className="mt-1 text-sm text-[#6f604d]">
+              Upload a mother photo and a child or daughter photo. VLG generates
+              private AI-style avatars immediately and never saves the real
+              photos.
+            </p>
+            <p className="mt-2 text-sm text-[#6f604d]">{setupAvatarMessage}</p>
+            {setupAvatarError ? (
+              <p className="mt-2 rounded-xl border border-[#caa45d] bg-[#f4ead7] px-3 py-2 text-sm text-[#3a2a18]">
+                {setupAvatarError}
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={setupForm.avatar}
+                    alt="Generated mom privacy avatar"
+                    className="h-20 w-20 rounded-2xl bg-white"
+                  />
+                  <div>
+                    <h3 className="font-bold">Mom avatar</h3>
+                    <p className="text-sm text-[#6f604d]">
+                      Created from a mom photo, not the real image.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2">
+                  <label className="cursor-pointer rounded-xl bg-[#120f0b] px-4 py-3 text-center text-sm font-semibold text-[#fffaf0]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) =>
+                        handleSetupAvatarPhotoChange("mom", event)
+                      }
+                      disabled={generatingSetupAvatar !== null}
+                    />
+                    {generatingSetupAvatar === "mom"
+                      ? "Generating..."
+                      : "Upload mom photo"}
+                  </label>
+                  <button
+                    className="rounded-xl border border-[#d7b46a]/60 px-4 py-3 text-sm font-semibold text-[#3a2a18] disabled:opacity-50"
+                    onClick={() => resetSetupAvatar("mom")}
+                    disabled={generatingSetupAvatar !== null}
+                  >
+                    Reset mom avatar
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#d7b46a]/45 bg-[#fbf4e8] p-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={setupForm.childAvatar}
+                    alt="Generated child privacy avatar"
+                    className="h-20 w-20 rounded-2xl bg-white"
+                  />
+                  <div>
+                    <h3 className="font-bold">Child avatar</h3>
+                    <p className="text-sm text-[#6f604d]">
+                      Use for a daughter or any child profile photo.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2">
+                  <label className="cursor-pointer rounded-xl bg-[#120f0b] px-4 py-3 text-center text-sm font-semibold text-[#fffaf0]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) =>
+                        handleSetupAvatarPhotoChange("child", event)
+                      }
+                      disabled={generatingSetupAvatar !== null}
+                    />
+                    {generatingSetupAvatar === "child"
+                      ? "Generating..."
+                      : "Upload child photo"}
+                  </label>
+                  <button
+                    className="rounded-xl border border-[#d7b46a]/60 px-4 py-3 text-sm font-semibold text-[#3a2a18] disabled:opacity-50"
+                    onClick={() => resetSetupAvatar("child")}
+                    disabled={generatingSetupAvatar !== null}
+                  >
+                    Reset child avatar
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -1449,17 +1672,14 @@ export default function Page() {
         </div>
 
         <section className="mb-5 rounded-2xl border border-[#d7b46a]/35 bg-[#1b1712] p-4 shadow-lg shadow-black/25">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <img
-              src={me.avatar}
-              alt={`${me.name} privacy avatar`}
-              className="h-20 w-20 rounded-2xl bg-[#2c2014]"
-            />
+          <div className="flex flex-col gap-4">
             <div className="flex-1">
               <p className="text-sm font-semibold text-[#d7b46a]">
                 {LOCAL_PRIVACY_AVATAR_PLUGIN.name}
               </p>
-              <h2 className="text-lg font-bold">Create a private avatar</h2>
+              <h2 className="text-lg font-bold">
+                Create private mom & child avatars
+              </h2>
               <p className="mt-1 text-sm text-[#efe0bd]">
                 {LOCAL_PRIVACY_AVATAR_PLUGIN.description}
               </p>
@@ -1468,24 +1688,79 @@ export default function Page() {
                 <p className="mt-2 text-sm text-[#f1d99b]">{avatarError}</p>
               ) : null}
             </div>
-            <div className="grid gap-2 sm:w-44">
-              <label className="cursor-pointer rounded-xl bg-[#d7b46a] px-4 py-3 text-center text-sm font-semibold text-[#120f0b]">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={handleAvatarPhotoChange}
-                  disabled={isGeneratingAvatar}
-                />
-                {isGeneratingAvatar ? "Creating..." : "Use photo"}
-              </label>
-              <button
-                className="rounded-xl border border-[#d7b46a]/50 px-4 py-3 text-sm font-semibold text-[#fffaf0] disabled:opacity-50"
-                onClick={resetMyAvatar}
-                disabled={isGeneratingAvatar}
-              >
-                Reset avatar
-              </button>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-[#d7b46a]/35 bg-[#120f0b] p-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={me.avatar}
+                    alt={`${me.name} mom privacy avatar`}
+                    className="h-16 w-16 rounded-2xl bg-[#2c2014]"
+                  />
+                  <div>
+                    <p className="font-semibold">Mom avatar</p>
+                    <p className="text-xs text-[#d8bd7a]">
+                      Generated from mom photo.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <label className="cursor-pointer rounded-xl bg-[#d7b46a] px-4 py-3 text-center text-sm font-semibold text-[#120f0b]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) => handleAvatarPhotoChange("mom", event)}
+                      disabled={isGeneratingAvatar}
+                    />
+                    {isGeneratingAvatar ? "Creating..." : "Use mom photo"}
+                  </label>
+                  <button
+                    className="rounded-xl border border-[#d7b46a]/50 px-4 py-3 text-sm font-semibold text-[#fffaf0] disabled:opacity-50"
+                    onClick={() => resetMyAvatar("mom")}
+                    disabled={isGeneratingAvatar}
+                  >
+                    Reset mom avatar
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#d7b46a]/35 bg-[#120f0b] p-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={me.childAvatar}
+                    alt={`${me.name} child privacy avatar`}
+                    className="h-16 w-16 rounded-2xl bg-[#2c2014]"
+                  />
+                  <div>
+                    <p className="font-semibold">Child avatar</p>
+                    <p className="text-xs text-[#d8bd7a]">
+                      Generated from child photo.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <label className="cursor-pointer rounded-xl bg-[#d7b46a] px-4 py-3 text-center text-sm font-semibold text-[#120f0b]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) =>
+                        handleAvatarPhotoChange("child", event)
+                      }
+                      disabled={isGeneratingAvatar}
+                    />
+                    {isGeneratingAvatar ? "Creating..." : "Use child photo"}
+                  </label>
+                  <button
+                    className="rounded-xl border border-[#d7b46a]/50 px-4 py-3 text-sm font-semibold text-[#fffaf0] disabled:opacity-50"
+                    onClick={() => resetMyAvatar("child")}
+                    disabled={isGeneratingAvatar}
+                  >
+                    Reset child avatar
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -1495,11 +1770,18 @@ export default function Page() {
             <section className="rounded-2xl border border-[#d7b46a]/45 bg-[#fffaf0] text-[#1b1712] p-5 shadow-lg">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={current.avatar}
-                    alt={`${current.name} avatar`}
-                    className="w-20 h-20 rounded-2xl sm:w-24 sm:h-24"
-                  />
+                  <div className="flex -space-x-3">
+                    <img
+                      src={current.avatar}
+                      alt={`${current.name} mom avatar`}
+                      className="w-20 h-20 rounded-2xl border-2 border-[#fffaf0] bg-white sm:w-24 sm:h-24"
+                    />
+                    <img
+                      src={current.childAvatar}
+                      alt={`${current.name} child avatar`}
+                      className="w-20 h-20 rounded-2xl border-2 border-[#fffaf0] bg-white sm:w-24 sm:h-24"
+                    />
+                  </div>
                   <div>
                     <h2 className="text-2xl font-bold">{current.name}</h2>
                     <p className="text-[#6f604d]">{current.neighborhood}</p>
