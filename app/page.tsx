@@ -45,6 +45,29 @@ type AvatarPlugin = {
   generateAvatar(input: AvatarPluginInput): Promise<string>;
 };
 
+type CalendarSetupPlugin = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+type SetupProfileForm = {
+  name: string;
+  neighborhood: string;
+  kidsAgesText: string;
+  bio: string;
+  values: string[];
+  preferredDates: string[];
+  everydayMoments: string[];
+  availability: string[];
+};
+
+type SetupMultiSelectField =
+  | "availability"
+  | "everydayMoments"
+  | "preferredDates"
+  | "values";
+
 const AVATAR_PALETTES: AvatarPalette[] = [
   {
     background: "#fef3c7",
@@ -242,6 +265,78 @@ const LOCAL_PRIVACY_AVATAR_PLUGIN: AvatarPlugin = {
   },
 };
 
+const LOCAL_CALENDAR_SETUP_PLUGIN: CalendarSetupPlugin = {
+  id: "local-prime-time-calendar",
+  name: "Calendar setup",
+  description:
+    "Pick the real days and times you are most open to hangouts. This stays on your device and powers match scoring.",
+};
+
+const NEIGHBORHOOD_OPTIONS = [
+  "Burbank",
+  "Granada Hills",
+  "North Hollywood",
+  "Northridge",
+  "Sherman Oaks",
+  "Studio City",
+];
+
+const VALUE_OPTIONS = [
+  "outdoors",
+  "gentle parenting",
+  "low-sugar",
+  "screen-light",
+  "inclusive",
+  "creative play",
+  "routine",
+  "kindness",
+  "no-pressure plans",
+];
+
+const PLAYDATE_STYLE_OPTIONS = [
+  "Park",
+  "Open park",
+  "Library",
+  "Museum",
+  "Farmer's market",
+  "Play cafe",
+  "Picnic",
+  "Hiking trail",
+  "Board game cafe",
+];
+
+const EVERYDAY_MOMENT_OPTIONS = [
+  "Costco run",
+  "Target wander",
+  "Coffee between activities",
+  "Walk while kids play",
+  "Park bench hang",
+  "Run club / sports wait",
+  "Farmers market",
+  "Library hour",
+  "After-school snack",
+  "Errand buddy",
+  "Workout class nearby",
+  "Mom-only coffee",
+];
+
+const PRIME_HANGOUT_OPTIONS = [
+  "Mon AM",
+  "Mon PM",
+  "Tue AM",
+  "Tue PM",
+  "Wed AM",
+  "Wed PM",
+  "Thu AM",
+  "Thu PM",
+  "Fri AM",
+  "Fri PM",
+  "Sat AM",
+  "Sat PM",
+  "Sun AM",
+  "Sun PM",
+];
+
 const SEED_PROFILES: VLGProfile[] = [
   {
     id: "p1",
@@ -360,6 +455,61 @@ const DEFAULT_ME: VLGProfile = {
   safetyVerified: false,
   avatar: createPrivacyAvatar("Iris"),
 };
+
+function createDefaultSetupForm(): SetupProfileForm {
+  return {
+    name: DEFAULT_ME.name,
+    neighborhood: DEFAULT_ME.neighborhood,
+    kidsAgesText: DEFAULT_ME.kidsAges.join(", "),
+    bio: DEFAULT_ME.bio,
+    values: [...DEFAULT_ME.values],
+    preferredDates: [...DEFAULT_ME.preferredDates],
+    everydayMoments: [...DEFAULT_ME.everydayMoments],
+    availability: [...DEFAULT_ME.availability],
+  };
+}
+
+function toggleListItem(items: string[], item: string) {
+  return items.includes(item)
+    ? items.filter((currentItem) => currentItem !== item)
+    : [...items, item];
+}
+
+function parseKidsAges(value: string) {
+  return value
+    .split(",")
+    .map((age) => Number.parseInt(age.trim(), 10))
+    .filter((age) => Number.isInteger(age) && age > 0 && age < 19);
+}
+
+function fallbackToDefault(items: string[], defaultItems: string[]) {
+  return items.length > 0 ? items : defaultItems;
+}
+
+function createProfileFromSetup(form: SetupProfileForm): VLGProfile {
+  const name = form.name.trim() || DEFAULT_ME.name;
+  const neighborhood = form.neighborhood || DEFAULT_ME.neighborhood;
+  const kidsAges = parseKidsAges(form.kidsAgesText);
+
+  return {
+    ...DEFAULT_ME,
+    name,
+    neighborhood,
+    kidsAges: kidsAges.length > 0 ? kidsAges : DEFAULT_ME.kidsAges,
+    availability: fallbackToDefault(form.availability, DEFAULT_ME.availability),
+    values: fallbackToDefault(form.values, DEFAULT_ME.values),
+    preferredDates: fallbackToDefault(
+      form.preferredDates,
+      DEFAULT_ME.preferredDates,
+    ),
+    everydayMoments: fallbackToDefault(
+      form.everydayMoments,
+      DEFAULT_ME.everydayMoments,
+    ),
+    bio: form.bio.trim() || DEFAULT_ME.bio,
+    avatar: createPrivacyAvatar(name),
+  };
+}
 
 const SEED_PROFILE_BY_ID = new Map(
   SEED_PROFILES.map((profile) => [profile.id, profile]),
@@ -660,6 +810,10 @@ export default function Page() {
   );
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
+  const [setupForm, setSetupForm] = useState<SetupProfileForm>(() =>
+    createDefaultSetupForm(),
+  );
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -672,7 +826,32 @@ export default function Page() {
   }, [me, queue, likes, passes, matches, history]);
 
   function startApp() {
-    setMe(cloneProfile(DEFAULT_ME));
+    if (parseKidsAges(setupForm.kidsAgesText).length === 0) {
+      setSetupError("Add at least one kid age, like 4 or 4, 7.");
+      return;
+    }
+
+    if (setupForm.availability.length === 0) {
+      setSetupError("Pick at least one prime day and time for hangouts.");
+      return;
+    }
+
+    setSetupError(null);
+    setMe(createProfileFromSetup(setupForm));
+  }
+
+  function updateSetupField(
+    field: "bio" | "kidsAgesText" | "name" | "neighborhood",
+    value: string,
+  ) {
+    setSetupForm((currentForm) => ({ ...currentForm, [field]: value }));
+  }
+
+  function toggleSetupOption(field: SetupMultiSelectField, option: string) {
+    setSetupForm((currentForm) => ({
+      ...currentForm,
+      [field]: toggleListItem(currentForm[field], option),
+    }));
   }
 
   async function handleAvatarPhotoChange(
@@ -803,22 +982,209 @@ export default function Page() {
     setPasses([]);
     setMatches([]);
     setHistory([]);
+    setSetupForm(createDefaultSetupForm());
+    setSetupError(null);
   }
 
   if (!me) {
     return (
-      <main className="min-h-screen bg-neutral-950 text-white p-6">
-        <h1 className="text-3xl font-bold mb-3">VLG Setup</h1>
-        <p className="text-neutral-300 mb-6">
-          Find your mom circle without the awkward small talk.
-        </p>
+      <main className="min-h-screen bg-neutral-950 text-white p-4 sm:p-6">
+        <div className="mx-auto max-w-3xl space-y-5">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-amber-200">
+              Setup quiz
+            </p>
+            <h1 className="mt-1 text-3xl font-bold">Build your mom village</h1>
+            <p className="mt-2 text-neutral-300">
+              Tell VLG the everyday rhythms that actually make hangouts possible
+              before you start matching.
+            </p>
+          </div>
 
-        <button
-          className="bg-white text-black px-5 py-3 rounded-xl font-semibold"
-          onClick={startApp}
-        >
-          Start
-        </button>
+          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+            <h2 className="text-xl font-bold">Your basics</h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              These answers become your local profile. No backend is connected.
+            </p>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold">
+                Your name
+                <input
+                  className="rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  value={setupForm.name}
+                  onChange={(event) =>
+                    updateSetupField("name", event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Neighborhood
+                <select
+                  className="rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  value={setupForm.neighborhood}
+                  onChange={(event) =>
+                    updateSetupField("neighborhood", event.target.value)
+                  }
+                >
+                  {NEIGHBORHOOD_OPTIONS.map((neighborhood) => (
+                    <option key={neighborhood} value={neighborhood}>
+                      {neighborhood}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Kid ages
+                <input
+                  className="rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  placeholder="Example: 4, 7"
+                  value={setupForm.kidsAgesText}
+                  onChange={(event) =>
+                    updateSetupField("kidsAgesText", event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold sm:col-span-2">
+                Short bio
+                <textarea
+                  className="min-h-24 rounded-xl border border-neutral-300 px-3 py-3 text-base font-normal"
+                  value={setupForm.bio}
+                  onChange={(event) =>
+                    updateSetupField("bio", event.target.value)
+                  }
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-black shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">
+              {LOCAL_CALENDAR_SETUP_PLUGIN.name}
+            </p>
+            <h2 className="mt-1 text-xl font-bold">
+              Prime days and times for hangouts
+            </h2>
+            <p className="mt-1 text-sm text-amber-950">
+              {LOCAL_CALENDAR_SETUP_PLUGIN.description}
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {PRIME_HANGOUT_OPTIONS.map((time) => {
+                const selected = setupForm.availability.includes(time);
+
+                return (
+                  <button
+                    key={time}
+                    className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
+                      selected
+                        ? "border-amber-900 bg-amber-900 text-white"
+                        : "border-amber-200 bg-white text-amber-950"
+                    }`}
+                    onClick={() => toggleSetupOption("availability", time)}
+                  >
+                    {formatAvailability(time)}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+            <h2 className="text-xl font-bold">Parenting values</h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              Choose the values that make another mom feel easy to be around.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {VALUE_OPTIONS.map((value) => {
+                const selected = setupForm.values.includes(value);
+
+                return (
+                  <button
+                    key={value}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      selected
+                        ? "border-black bg-black text-white"
+                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                    }`}
+                    onClick={() => toggleSetupOption("values", value)}
+                  >
+                    {value}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+            <h2 className="text-xl font-bold">Everyday moments</h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              Pick the small windows where you would realistically connect.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {EVERYDAY_MOMENT_OPTIONS.map((moment) => {
+                const selected = setupForm.everydayMoments.includes(moment);
+
+                return (
+                  <button
+                    key={moment}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      selected
+                        ? "border-black bg-black text-white"
+                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                    }`}
+                    onClick={() => toggleSetupOption("everydayMoments", moment)}
+                  >
+                    {moment}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 text-black shadow-lg">
+            <h2 className="text-xl font-bold">Hangout style</h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              These guide playdate style without putting scheduling controls on
+              individual cards.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {PLAYDATE_STYLE_OPTIONS.map((style) => {
+                const selected = setupForm.preferredDates.includes(style);
+
+                return (
+                  <button
+                    key={style}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      selected
+                        ? "border-black bg-black text-white"
+                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                    }`}
+                    onClick={() => toggleSetupOption("preferredDates", style)}
+                  >
+                    {style}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {setupError ? (
+            <p className="rounded-xl border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-100">
+              {setupError}
+            </p>
+          ) : null}
+
+          <button
+            className="w-full rounded-2xl bg-white px-5 py-4 text-lg font-bold text-black"
+            onClick={startApp}
+          >
+            Start matching
+          </button>
+        </div>
       </main>
     );
   }
